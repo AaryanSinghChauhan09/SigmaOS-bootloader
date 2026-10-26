@@ -1,0 +1,17 @@
+[package]
+name = "sigmaos-bootloader"
+version = "0.1.0"
+edition = "2021"
+authors = ["SigmaOS Project"]
+description = "UEFI bootloader and boot configuration"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/AaryanSinghChauhan09/SigmaOS-bootloader"
+readme = "README.md"
+keywords = ["boot", "uefi", "bootloader"]
+categories = ["os"]
+
+[dependencies]
+sigmaos-kernel = { version = "0.1", path = "../SigmaOS-kernel" }
+
+[profile.release]
+opt-level = 3
