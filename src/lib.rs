@@ -4,4 +4,6 @@
 pub mod boot;
 pub mod sigma_boot;
 
-pub use boot::Bootloader;
+pub use boot::bootloader::UefiBootloader;
+pub use boot::bootloader::UefiBootloader as Bootloader;
+pub use boot::*;
