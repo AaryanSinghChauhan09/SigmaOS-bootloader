@@ -7,6 +7,10 @@ In particular, boot claims require reproducible firmware or emulator evidence,
 validated image inputs, and recovery behavior for malformed or unsupported
 media.
 
+Its secure-boot model does not authenticate signatures. It returns
+`VerifierUnavailable` for signed kernels until a cryptographic backend and
+trusted key format are implemented.
+
 The crate depends on the sibling `SigmaOS-kernel` checkout through a local path.
 
 ## License
