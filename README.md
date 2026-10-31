@@ -1,15 +1,14 @@
-# SigmaOS-bootloader
+# SigmaOS Bootloader
 
-Part of the SigmaOS multi-repository architecture.
+This crate exports UEFI and boot-configuration APIs, including GPT, command
+line, initramfs, and device-tree models. The public module surface and parsing
+models do not establish that this code can boot SigmaOS on physical hardware.
+In particular, boot claims require reproducible firmware or emulator evidence,
+validated image inputs, and recovery behavior for malformed or unsupported
+media.
 
-## Principles
-- MODULARITY: Single responsibility per repository
-- LOOSE COUPLING: Minimal dependencies between repos
-- INTERFACE SEGREGATION: Clear, focused public APIs
-- DETERMINISTIC TESTING: Comprehensive test coverage
+The crate depends on the sibling `SigmaOS-kernel` checkout through a local path.
 
 ## License
-SPDX-License-Identifier: GPL-3.0-or-later
 
-## Copyright
-Copyright (C) 2026 SigmaOS Project
+GPL-3.0-or-later. See [`LICENSE`](LICENSE) and [`Cargo.toml`](Cargo.toml).
