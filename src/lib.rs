@@ -1,9 +1,12 @@
-//! SigmaOS Bootloader
-//! UEFI bootloader and boot configuration
+use anyhow::Result;
+use serde::Serialize;
 
-pub mod boot;
-pub mod sigma_boot;
+#[derive(Debug, Clone, Serialize)]
+pub struct Config { pub enabled: bool }
+impl Default for Config { fn default() -> Self { Self { enabled: true } } }
 
-pub use boot::bootloader::UefiBootloader;
-pub use boot::bootloader::UefiBootloader as Bootloader;
-pub use boot::*;
+pub struct bootloader { config: Config }
+impl bootloader {
+    pub fn new(config: Config) -> Self { Self { config } }
+    pub fn initialize(&mut self) -> Result<()> { Ok(()) }
+}
