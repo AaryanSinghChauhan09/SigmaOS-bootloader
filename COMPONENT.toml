@@ -1,0 +1,9 @@
+[component]
+name = "SigmaOS-bootloader"
+description = "SigmaOS subsystem component for bootloader"
+version = "0.1.0"
+tier = 0
+
+[capabilities]
+contract_version = "1.0.0"
+principles = ["DRY", "KISS", "SOLID", "Arrange-Act-Assert", "Pristine-Sources"]
