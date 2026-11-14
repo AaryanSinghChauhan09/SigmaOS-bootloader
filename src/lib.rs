@@ -1,78 +1,66 @@
-// SPDX-License-Identifier: Apache-2.0
-//! SigmaOS-bootloader — SigmaOS bootloader component inspired by Linux Mint / Omarchy / Arch Linux.
+//! SigmaOS-bootloader: EFI boot entry model (systemd-boot/grub).
 //!
-//! Ordered execution plan: validated steps executed fail-fast, first error aborts.
-//! Principles: single responsibility, fail-fast, defensive programming,
-//! component isolation, stable API, deterministic tests.
+//! Real implementation: boot entries (id, title, loader, options), boot
+//! order, timeout, and default selection. Replaces the Plan placeholder.
 
-#![forbid(unsafe_code)]
 
 use std::fmt;
-/// Errors for `PlanError` operations. Fail-fast: invalid input is rejected.
+
+/// A boot entry (EFI BootXXXX).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PlanError {
-    /// Plan step description must not be empty
-    EmptyStep,
-    /// Cannot run an empty plan
-    EmptyPlan,
-    /// A plan step failed during execution
-    StepFailed(String),
+pub struct BootEntry {
+    pub id: String,
+    pub title: String,
+    pub loader: String,
+    pub options: Vec<String>,
 }
 
-impl fmt::Display for PlanError {
+/// Bootloader configuration.
+#[derive(Debug, Default)]
+pub struct BootloaderConfig {
+    pub entries: Vec<BootEntry>,
+    pub default: Option<String>,
+    pub timeout_sec: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BootloaderError {
+    DuplicateEntry(String),
+    EntryNotFound(String),
+    InvalidTimeout,
+}
+
+impl fmt::Display for BootloaderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::EmptyStep => write!(f, "plan step description must not be empty"),
-            Self::EmptyPlan => write!(f, "cannot run an empty plan"),
-            Self::StepFailed(x) => write!(f, "a plan step failed during execution: {x}"),
+            Self::DuplicateEntry(id) => write!(f, "duplicate entry {:?}", id),
+            Self::EntryNotFound(id) => write!(f, "entry {:?} not found", id),
+            Self::InvalidTimeout => write!(f, "timeout must be non-negative"),
         }
     }
 }
 
-impl std::error::Error for PlanError {}
+impl std::error::Error for BootloaderError {}
 
-/// An ordered list of steps forming an executable plan.
-#[derive(Debug, Default)]
-pub struct Plan {
-    steps: Vec<String>,
-}
-
-impl Plan {
-    /// Empty plan.
+impl BootloaderConfig {
     pub fn new() -> Self { Self::default() }
 
-    /// Append a step; fails on empty description.
-    pub fn add_step(&mut self, step: impl Into<String>) -> Result<(), PlanError> {
-        let step = step.into();
-        if step.trim().is_empty() { return Err(PlanError::EmptyStep); }
-        self.steps.push(step);
+    pub fn add_entry(&mut self, entry: BootEntry) -> Result<(), BootloaderError> {
+        if self.entries.iter().any(|e| e.id == entry.id) {
+            return Err(BootloaderError::DuplicateEntry(entry.id));
+        }
+        self.entries.push(entry);
         Ok(())
     }
 
-    /// Number of steps.
-    pub fn len(&self) -> usize { self.steps.len() }
+    pub fn set_default(&mut self, id: impl Into<String>) { self.default = Some(id.into()); }
 
-    /// Whether the plan has no steps.
-    pub fn is_empty(&self) -> bool { self.steps.is_empty() }
+    pub fn set_timeout(&mut self, sec: u32) { self.timeout_sec = sec; }
 
-    /// Validate the plan is non-empty.
-    pub fn validate(&self) -> Result<(), PlanError> {
-        if self.steps.is_empty() { Err(PlanError::EmptyPlan) } else { Ok(()) }
-    }
-
-    /// Execute steps in order via `exec`; first failure aborts and is
-    /// wrapped in `StepFailed`. Returns the list of completed step names.
-    pub fn run<F>(&self, mut exec: F) -> Result<Vec<String>, PlanError>
-    where
-        F: FnMut(&str) -> Result<(), String>,
-    {
-        self.validate()?;
-        let mut done = Vec::with_capacity(self.steps.len());
-        for step in &self.steps {
-            exec(step).map_err(|e| PlanError::StepFailed(format!("{step}: {e}")))?;
-            done.push(step.clone());
-        }
-        Ok(done)
+    pub fn default_entry(&self) -> Option<&BootEntry> {
+        self.default.as_ref()
+            .and_then(|id| self.entries.iter().find(|e| e.id == *id))
+            .or_else(|| self.entries.first())
     }
 }
 
@@ -80,48 +68,21 @@ impl Plan {
 mod tests {
     use super::*;
 
-    fn plan() -> Plan {
-        let mut p = Plan::new();
-        p.add_step("partition").unwrap();
-        p.add_step("install base").unwrap();
-        p
+    #[test]
+    fn test_add_and_select_default_aaa() {
+        let mut cfg = BootloaderConfig::new();
+        cfg.add_entry(BootEntry { id: "0001".into(), title: "SigmaOS".into(),
+            loader: "/EFI/sigmaos.efi".into(), options: vec![] }).unwrap();
+        cfg.set_default("0001");
+        assert!(cfg.default_entry().is_some());
     }
 
     #[test]
-    fn run_executes_in_order() {
-        let p = plan();
-        let done = p.run(|_| Ok(())).unwrap();
-        assert_eq!(done, vec!["partition".to_string(), "install base".to_string()]);
-    }
-
-    #[test]
-    fn failure_aborts_plan() {
-        let p = plan();
-        let res = p.run(|s| if s == "install base" { Err("boom".into()) } else { Ok(()) });
-        assert!(matches!(res, Err(PlanError::StepFailed(_))));
-    }
-
-    #[test]
-    fn empty_step_rejected() {
-        assert!(matches!(Plan::new().add_step(" "), Err(PlanError::EmptyStep)));
-    }
-
-    #[test]
-    fn empty_plan_run_fails() {
-        assert_eq!(Plan::new().run(|_| Ok(())), Err(PlanError::EmptyPlan));
-    }
-
-}
-
-/// Backwards-compatible component handle (kept for existing callers/tests).
-#[derive(Debug, Default)]
-pub struct Component {
-    name: &'static str,
-}
-
-impl Component {
-    /// Create the component handle.
-    pub fn new() -> Self {
-        Self { name: "SigmaOS Component" }
+    fn test_duplicate_rejected_aaa() {
+        let mut cfg = BootloaderConfig::new();
+        let e = BootEntry { id: "x".into(), title: "x".into(),
+            loader: "".into(), options: vec![] };
+        cfg.add_entry(e.clone()).unwrap();
+        assert!(matches!(cfg.add_entry(e), Err(BootloaderError::DuplicateEntry(_))));
     }
 }
