@@ -1,6 +1,6 @@
 [component]
 name = "SigmaOS-bootloader"
-description = "SigmaOS subsystem component for bootloader"
+description = "Bootloader configuration & chainload manager"
 version = "0.1.0"
 tier = 0
 
