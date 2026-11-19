@@ -3,8 +3,13 @@ name = "sigmaos_bootloader"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "SigmaOS bootloader component inspired by Linux Mint / Omarchy / Arch Linux."
+description = "Unified bootloader configuration for SigmaOS with OOPS principles"
+repository = "https://github.com/AaryanSinghChauhan09/SigmaOS-bootloader"
 
 [lib]
 name = "sigmaos_bootloader"
 path = "src/lib.rs"
+
+[[bin]]
+name = "sigmaos-bootloader"
+path = "src/main.rs"
